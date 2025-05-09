@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>RFID Fuzzer Playlist Generator</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 2em auto; }
+    label { display: block; margin-top: 1em; }
+    input[type="text"] { width: 100%; padding: 0.5em; box-sizing: border-box; }
+    button { margin-top: 1.5em; padding: 0.75em 1.5em; }
+  </style>
+</head>
+<body>
+  <h1>RFID Fuzzer Playlist Generator</h1>
+
+  <label>Playlist Name:
+    <input id="playlistName" type="text" placeholder="my_playlist" />
+  </label>
+
+  <label>Facility Codes (e.g. 1-5,70-79):
+    <input id="fcRanges" type="text" placeholder="1-5,70-79" />
+  </label>
+  <label><input id="commonFc" type="checkbox" /> Include common facility codes</label>
+
+  <label>Card Number Ranges (e.g. 10000-10500,11000-12000):
+    <input id="cardRanges" type="text" placeholder="10000-10500,11000-12000" />
+  </label>
+  <label><input id="commonCards" type="checkbox" /> Include common card numbers</label>
+
+  <label>Quantity (number or “all”):
+    <input id="quantity" type="text" placeholder="500 or all" />
+  </label>
+
+  <button id="generate">Generate & Download</button>
+  <script src="app.js"></script>
+</body>
+</html>
