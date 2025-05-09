@@ -1,31 +1,86 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RFID Fuzzer Playlist Generator</title>
   <style>
-    body { font-family: sans-serif; max-width: 600px; margin: 2em auto; }
-    label { display: block; margin-top: 1em; }
-    input[type="text"] { width: 100%; padding: 0.5em; box-sizing: border-box; }
-    button { margin-top: 1.5em; padding: 0.75em 1.5em; }
+    body {
+      font-family: monospace;
+      white-space: pre;
+      max-width: 800px;
+      margin: 2em auto;
+      background: #f4f4f4;
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 1em;
+    }
+    .logo img {
+      max-width: 200px;
+    }
+    h1 {
+      font-family: sans-serif;
+      white-space: normal;
+    }
+    label {
+      display: block;
+      margin-top: 1em;
+      font-family: sans-serif;
+      white-space: normal;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 0.5em;
+      box-sizing: border-box;
+      font-family: sans-serif;
+    }
+    button {
+      margin-top: 1.5em;
+      padding: 0.75em 1.5em;
+      font-family: sans-serif;
+    }
+    #summary {
+      border: 1px solid #ccc;
+      padding: 1em;
+      margin-top: 1em;
+      background: #fff;
+      font-family: sans-serif;
+      white-space: normal;
+    }
   </style>
 </head>
 <body>
-  <h1>RFID Fuzzer Playlist Generator</h1>  <label>
+  <div class="logo">
+    <img src="IMG_1209.jpeg" alt="Flipper Zero Logo" />
+  </div>
+  <h1>RFID Fuzzer Playlist Generator</h1>
+
+  <label>
     Playlist Name:
     <input id="playlistName" type="text" placeholder="my_playlist" />
-  </label>  <label>
+  </label>
+
+  <label>
     Facility Codes (e.g. 1-5,70-79):
     <input id="fcRanges" type="text" placeholder="1-5,70-79" />
   </label>
-  <label><input id="commonFc" type="checkbox" /> Include common facility codes</label>  <label>
+  <label><input id="commonFc" type="checkbox" /> Include common facility codes</label>
+
+  <label>
     Card Number Ranges (e.g. 10000-10500,11000-12000):
     <input id="cardRanges" type="text" placeholder="10000-10500,11000-12000" />
   </label>
-  <label><input id="commonCards" type="checkbox" /> Include common card numbers</label>  <label>
+  <label><input id="commonCards" type="checkbox" /> Include common card numbers</label>
+
+  <label>
     Quantity (number or “all”):
     <input id="quantity" type="text" placeholder="500 or all" />
-  </label><button id="generate">Generate & Download</button>
+  </label>
+
+  <button id="generate">Generate &amp; Download</button>
+
+  <div id="summary"></div>
 
   <script>
     const commonFC = [1,150,167,184,28,30,402,42,76,77,78,79,82,23,99];
@@ -36,15 +91,13 @@
       if (!name) return alert("Playlist name is required");
 
       let fcList = parseRanges(document.getElementById("fcRanges").value);
-      if (document.getElementById("commonFc").checked) {
+      if (document.getElementById("commonFc").checked)
         fcList = mergeUnique(fcList, commonFC);
-      }
       if (!fcList.length) return alert("No facility codes specified");
 
       let cardList = parseRanges(document.getElementById("cardRanges").value);
-      if (document.getElementById("commonCards").checked) {
+      if (document.getElementById("commonCards").checked)
         cardList = mergeUnique(cardList, commonCards);
-      }
       if (!cardList.length) return alert("No card numbers specified");
 
       const q = document.getElementById("quantity").value.trim().toLowerCase();
@@ -55,66 +108,76 @@
 
       let codes = [];
       if (generateAll) {
-        for (let fc of fcList) {
+        for (let fc of fcList)
           for (let c of cardList) {
             if (codes.length >= 2500) break;
             codes.push(formatHex(fc, c));
           }
-          if (codes.length >= 2500) break;
-        }
       } else {
         const always = [];
-        for (let fc of commonFC.filter(x => fcList.includes(x))) {
-          for (let c of commonCards.filter(x => cardList.includes(x))) {
+        for (let fc of commonFC.filter(x => fcList.includes(x)))
+          for (let c of commonCards.filter(x => cardList.includes(x)))
             always.push(formatHex(fc, c));
-          }
-        }
-        always.forEach(x => { if (!codes.includes(x)) codes.push(x); });
-
+        always.forEach(x => {
+          if (!codes.includes(x)) codes.push(x);
+        });
         while ((codes.length - always.length) < count) {
           const fc = fcList[Math.floor(Math.random() * fcList.length)];
-          const c  = cardList[Math.floor(Math.random() * cardList.length)];
+          const c = cardList[Math.floor(Math.random() * cardList.length)];
           const hx = formatHex(fc, c);
           if (!codes.includes(hx)) codes.push(hx);
         }
       }
 
-      // ensure blank line at end
-      const content = codes.join("\n") + "\n\n";
-      const blob    = new Blob([ content ], { type: "text/plain" });
+      // Build file content with comments
+      let header = `# Playlist: ${name}\n`;
+      header += `# Facility Codes: ${fcList.sort((a,b)=>a-b).join(', ')}\n`;
+      header += `# Card Numbers: ${cardList.sort((a,b)=>a-b).join(', ')}\n`;
+      header += `# Quantity: ${generateAll ? 'all' : count}\n\n`;
+      const content = header + codes.join("\n") + "\n\n";
 
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href     = url;
+      const blob = new Blob([content], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
       a.download = name + ".txt";
       a.click();
       URL.revokeObjectURL(url);
 
-      alert(`Downloaded "${name}.txt"\n\nFCs: ${fcList.join(", ")}\nCards: ${cardList.join(", ")}`);
+      // Display summary in box
+      document.getElementById("summary").innerText =
+        `Included Facility Codes: ${fcList.sort((a,b)=>a-b).join(', ')}\n` +
+        `Included Card Numbers: ${cardList.sort((a,b)=>a-b).join(', ')}\n` +
+        `Generated ${generateAll ? codes.length + ' (all)' : count} codes.`;
     };
 
     function parseRanges(input) {
       if (!input) return [];
-      return Array.from(new Set(input.split(",").flatMap(s => {
-        s = s.trim();
-        if (s.includes("-")) {
-          const [lo,hi] = s.split("-").map(n=>parseInt(n,10));
-          if (isNaN(lo)||isNaN(hi)) return [];
-          return Array.from({length:Math.abs(hi-lo)+1},(_,i)=>Math.min(lo,hi)+i);
-        } else {
-          const n = parseInt(s,10);
-          return isNaN(n)?[]:[n];
-        }
-      })));
+      return Array.from(new Set(
+        input.split(",").flatMap(s => {
+          s = s.trim();
+          if (s.includes("-")) {
+            const [lo, hi] = s.split("-").map(n => parseInt(n, 10));
+            if (isNaN(lo) || isNaN(hi)) return [];
+            return Array.from(
+              { length: Math.abs(hi - lo) + 1 },
+              (_, i) => Math.min(lo, hi) + i
+            );
+          } else {
+            const n = parseInt(s, 10);
+            return isNaN(n) ? [] : [n];
+          }
+        })
+      ));
     }
 
-    function mergeUnique(a,b) {
-      return Array.from(new Set([].concat(a,b)));
+    function mergeUnique(a, b) {
+      return Array.from(new Set(a.concat(b)));
     }
 
-    function formatHex(fc,card) {
-      const id = (fc << 16) | card;
-      return id.toString(16).toUpperCase().padStart(8,"0");
+    function formatHex(fc, card) {
+      return ((fc << 16) | card).toString(16).toUpperCase().padStart(8, '0');
     }
-  </script></body>
+  </script>
+</body>
 </html>
