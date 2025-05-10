@@ -112,21 +112,85 @@
       const name = document.getElementById('playlistName').value.trim();
       if (!name) { alert('Playlist name is required'); return; }
 
+      // Facility codes
       let fcList = parseRanges(document.getElementById('fcRanges').value);
       if (document.getElementById('commonFc').checked) fcList = mergeUnique(fcList, commonFC);
       if (!fcList.length) { alert('No facility codes specified'); return; }
 
+      // Card list from ranges and common
       let cardList = parseRanges(document.getElementById('cardRanges').value);
       if (document.getElementById('commonCards').checked) cardList = mergeUnique(cardList, commonCards);
 
+      // Anchors
       const anchorCount = parseInt(document.getElementById('anchorCount').value, 10) || 0;
-      const selectedBases = Array.from(anchorSelect.selectedOptions).map(o => parseInt(o.value, 10));
-      if (anchorCount > 0 && selectedBases.length) {
+      const selectedBases = Array.from(document.getElementById('anchorBases').selectedOptions)
+        .map(o => parseInt(o.value, 10));
+
+      // Generate codes
+      const qRaw = document.getElementById('quantity').value.trim().toLowerCase();
+      const generateAll = (qRaw === 'all');
+      const count = generateAll ? 0 : parseInt(qRaw, 10);
+      if (!generateAll && (isNaN(count) || count < 1)) { alert('Invalid quantity'); return; }
+
+      let codes = [];
+      if (generateAll) {
+        // All combinations up to 2500
+        for (let fc of fcList) {
+          for (let c of cardList) {
+            if (codes.length >= 2500) break;
+            codes.push(formatHex(fc, c));
+          }
+        }
+      } else if (anchorCount > 0 && selectedBases.length) {
+        // Block codes: first portion evenly distributed across anchors
+        const blockSize = Math.floor(count / selectedBases.length);
+        let anchorCards = [];
         selectedBases.forEach(base => {
-          for (let j = 0; j < anchorCount; j++) {
-            cardList.push(base + j);
+          for (let i = 0; i < blockSize; i++) {
+            anchorCards.push(base + i);
           }
         });
+        anchorCards = Array.from(new Set(anchorCards));
+        // Create block codes
+        for (let fc of fcList) {
+          for (let c of anchorCards) {
+            codes.push(formatHex(fc, c));
+          }
+        }
+        // Fill remainder randomly
+        const remainder = count - codes.length;
+        while (codes.length < count) {
+          const fc = fcList[Math.floor(Math.random() * fcList.length)];
+          const c = cardList[Math.floor(Math.random() * cardList.length)];
+          const hex = formatHex(fc, c);
+          if (!codes.includes(hex)) codes.push(hex);
+        }
+      } else {
+        // Random selection only
+        while (codes.length < count) {
+          const fc = fcList[Math.floor(Math.random() * fcList.length)];
+          const c = cardList[Math.floor(Math.random() * cardList.length)];
+          const hex = formatHex(fc, c);
+          if (!codes.includes(hex)) codes.push(hex);
+        }
+      }
+
+      // Output file
+      const content = codes.join("
+") + "
+";
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = name + '.txt'; a.click(); URL.revokeObjectURL(url);
+
+      // Summary box
+      document.getElementById('summary').innerText =
+        `Included FCs: ${fcList.sort((a,b)=>a-b).join(', ')}
+` +
+        `Included Cards: ${cardList.sort((a,b)=>a-b).join(', ')}
+` +
+        `Output Count: ${generateAll ? codes.length+' (all)' : count}`;
+    };
       }
       cardList = mergeUnique(cardList);
       if (!cardList.length) { alert('No card numbers specified'); return; }
