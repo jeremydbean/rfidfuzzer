@@ -56,6 +56,11 @@
       <button id="selectAllBases" type="button" style="margin-left:0.5em;">Select All</button>
     </label>
     <div id="anchorBases"></div>
+
+    <label style="margin-top:1em;"><input id="includeRandomAnchors" type="checkbox" /> Include random cards between anchors</label>
+    <label>Random Cards Count:
+      <input id="randomAnchorsCount" type="number" min="1" placeholder="e.g., 200" />
+    </label>
   </fieldset>
 
   <fieldset>
@@ -111,14 +116,18 @@
 
       const anchorCount = parseInt(document.getElementById('anchorCount').value, 10) || 0;
       const bases = Array.from(anchorBases.querySelectorAll('input:checked')).map(cb => parseInt(cb.value, 10));
+      const includeRand = document.getElementById('includeRandomAnchors').checked;
+      const randCnt = parseInt(document.getElementById('randomAnchorsCount').value, 10) || 0;
 
       let preview = [];
       if (anchorCount > 0 && bases.length) {
         const quarter = Math.floor(anchorCount / 4);
         const remainder = anchorCount - quarter;
+        // first-quarter sequential
         fcList.forEach(fc => bases.forEach(base => {
           for (let i = 0; i < quarter; i++) preview.push(`${fc}:${base + i}`);
         }));
+        // build and shuffle remainder
         let remainderPairs = [];
         fcList.forEach(fc => bases.forEach(base => {
           const used = new Set();
@@ -133,6 +142,19 @@
           [remainderPairs[i], remainderPairs[j]] = [remainderPairs[j], remainderPairs[i]];
         }
         preview = preview.concat(remainderPairs);
+        // random cards between min and max base
+        if (includeRand && randCnt > 0) {
+          const minBase = Math.min(...bases);
+          const maxBase = Math.max(...bases);
+          const randSet = new Set();
+          while (randSet.size < randCnt) {
+            const r = Math.floor(Math.random() * (maxBase - minBase + 1)) + minBase;
+            randSet.add(r);
+          }
+          randSet.forEach(r => {
+            fcList.forEach(fc => preview.push(`${fc}:${r}`));
+          });
+        }
       } else {
         const q = document.getElementById('quantity').value.trim().toLowerCase();
         const all = (q === 'all');
