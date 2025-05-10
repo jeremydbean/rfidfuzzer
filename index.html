@@ -90,37 +90,36 @@
       const name = document.getElementById("playlistName").value.trim();
       if (!name) return alert("Playlist name is required");
 
-      let fcList = parseRanges(document.getElementById("fcRanges").value);
-      if (document.getElementById("commonFc").checked)
-        fcList = mergeUnique(fcList, commonFC);
+      const rawFc = document.getElementById("fcRanges").value.trim();
+      const includeCommonFc = document.getElementById("commonFc").checked;
+      const rawCard = document.getElementById("cardRanges").value.trim();
+      const includeCommonCards = document.getElementById("commonCards").checked;
+      const rawQty = document.getElementById("quantity").value.trim().toLowerCase();
+
+      let fcList = parseRanges(rawFc);
+      if (includeCommonFc) fcList = mergeUnique(fcList, commonFC);
       if (!fcList.length) return alert("No facility codes specified");
 
-      let cardList = parseRanges(document.getElementById("cardRanges").value);
-      if (document.getElementById("commonCards").checked)
-        cardList = mergeUnique(cardList, commonCards);
+      let cardList = parseRanges(rawCard);
+      if (includeCommonCards) cardList = mergeUnique(cardList, commonCards);
       if (!cardList.length) return alert("No card numbers specified");
 
-      const q = document.getElementById("quantity").value.trim().toLowerCase();
-      const generateAll = (q === "all");
-      const count = generateAll ? 0 : parseInt(q, 10);
-      if (!generateAll && (isNaN(count) || count < 1))
-        return alert("Invalid quantity");
+      const generateAll = (rawQty === "all");
+      const count = generateAll ? 0 : parseInt(rawQty, 10);
+      if (!generateAll && (isNaN(count) || count < 1)) return alert("Invalid quantity");
 
       let codes = [];
       if (generateAll) {
-        for (let fc of fcList)
-          for (let c of cardList) {
-            if (codes.length >= 2500) break;
-            codes.push(formatHex(fc, c));
-          }
+        for (let fc of fcList) for (let c of cardList) {
+          if (codes.length >= 2500) break;
+          codes.push(formatHex(fc, c));
+        }
       } else {
         const always = [];
         for (let fc of commonFC.filter(x => fcList.includes(x)))
           for (let c of commonCards.filter(x => cardList.includes(x)))
             always.push(formatHex(fc, c));
-        always.forEach(x => {
-          if (!codes.includes(x)) codes.push(x);
-        });
+        always.forEach(x => { if (!codes.includes(x)) codes.push(x); });
         while ((codes.length - always.length) < count) {
           const fc = fcList[Math.floor(Math.random() * fcList.length)];
           const c = cardList[Math.floor(Math.random() * cardList.length)];
@@ -129,20 +128,18 @@
         }
       }
 
-      // Build file content with comments
-      let header = `# Playlist: ${name}\n`;
-      header += `# Facility Codes: ${fcList.sort((a,b)=>a-b).join(', ')}\n`;
-      header += `# Card Numbers: ${cardList.sort((a,b)=>a-b).join(', ')}\n`;
-      header += `# Quantity: ${generateAll ? 'all' : count}\n\n`;
+      // Build file content with comments of entered options
+      let header = `# Playlist Name: ${name}\n`;
+      header += `# Facility Input: ${rawFc}\n`;
+      header += `# Include Common FC: ${includeCommonFc}\n`;
+      header += `# Card Input: ${rawCard}\n`;
+      header += `# Include Common Cards: ${includeCommonCards}\n`;
+      header += `# Quantity: ${rawQty}\n\n`;
       const content = header + codes.join("\n") + "\n\n";
 
       const blob = new Blob([content], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = name + ".txt";
-      a.click();
-      URL.revokeObjectURL(url);
+      const a = document.createElement("a"); a.href = url; a.download = name + ".txt"; a.click(); URL.revokeObjectURL(url);
 
       // Display summary in box
       document.getElementById("summary").innerText =
@@ -171,13 +168,8 @@
       ));
     }
 
-    function mergeUnique(a, b) {
-      return Array.from(new Set(a.concat(b)));
-    }
-
-    function formatHex(fc, card) {
-      return ((fc << 16) | card).toString(16).toUpperCase().padStart(8, '0');
-    }
+    function mergeUnique(a, b) { return Array.from(new Set(a.concat(b))); }
+    function formatHex(fc, card) { return ((fc << 16) | card).toString(16).toUpperCase().padStart(8, '0'); }
   </script>
 </body>
 </html>
