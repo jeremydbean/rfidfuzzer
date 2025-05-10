@@ -53,17 +53,19 @@
     <label>Anchor Count (cards per base):
       <input id="anchorCount" type="number" min="1" placeholder="e.g., 40" />
     </label>
-    <label style="margin-top:1em;"><input id="includeRandomAnchors" type="checkbox" /> Include random cards between anchors</label>
-    <br />
-    <br />
-    <label>Random Cards Count:
-      <input id="randomAnchorsCount" type="number" min="1" placeholder="e.g., 200" />
-    </label>
-    <br />
+
     <label>Starting Base Cards:
       <button id="selectAllBases" type="button" style="margin-left:0.5em;">Select All</button>
     </label>
     <div id="anchorBases"></div>
+
+    <!-- Moved random options below base cards -->
+    <br />
+    <label><input id="includeRandomAnchors" type="checkbox" /> Include random cards between anchors</label>
+    <br /><br />
+    <label>Random Cards Count:
+      <input id="randomAnchorsCount" type="number" min="1" placeholder="e.g., 200" />
+    </label>
   </fieldset>
 
   <fieldset>
@@ -83,20 +85,13 @@
 
   <script>
     const anchorBases = document.getElementById('anchorBases');
-    // include base cards 0,100-900
     [0,100,200,300,400,500,600,700,800,900].forEach(val => {
-      const lbl = document.createElement('label');
-      lbl.innerHTML = `<input type="checkbox" value="${val}" /> ${val}`;
-      anchorBases.appendChild(lbl);
+      const lbl = document.createElement('label'); lbl.innerHTML = `<input type="checkbox" value="${val}" /> ${val}`; anchorBases.appendChild(lbl);
     });
-    // include every 1000 from 1000 to 65000
     for (let val = 1000; val <= 65000; val += 1000) {
-      const lbl = document.createElement('label');
-      lbl.innerHTML = `<input type="checkbox" value="${val}" /> ${val}`;
-      anchorBases.appendChild(lbl);
+      const lbl = document.createElement('label'); lbl.innerHTML = `<input type="checkbox" value="${val}" /> ${val}`; anchorBases.appendChild(lbl);
     }
 
-    // Select All functionality
     document.getElementById('selectAllBases').onclick = () => {
       anchorBases.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = true);
     };
@@ -105,85 +100,44 @@
     const commonCards = [10016,10017,10020,10021,10103,10133,11078,13773,17563,199,20328,251,2604,27443,292,29918,30353,30355,3193,33977,37547,3929,50646,521,56730,6046,62085,63703,64606,64858,64866,64899,76,80,89];
 
     document.getElementById('generate').onclick = () => {
-      const name = document.getElementById('playlistName').value.trim();
-      if (!name) { alert('Playlist name is required'); return; }
-
+      const name = document.getElementById('playlistName').value.trim(); if (!name) { alert('Playlist name is required'); return; }
       let fcList = parseRanges(document.getElementById('fcRanges').value);
       if (document.getElementById('commonFc').checked) fcList = mergeUnique(fcList, commonFC);
       if (!fcList.length) { alert('No facility codes specified'); return; }
       if (fcList.some(n => n < 0 || n > 255)) { alert('Facility codes must be between 0 and 255'); return; }
-
       let cardList = parseRanges(document.getElementById('cardRanges').value);
       if (document.getElementById('commonCards').checked) cardList = mergeUnique(cardList, commonCards);
       if (cardList.some(n => n < 0 || n > 65535)) { alert('Card numbers must be between 0 and 65535'); return; }
-
       const anchorCount = parseInt(document.getElementById('anchorCount').value, 10) || 0;
       const bases = Array.from(anchorBases.querySelectorAll('input:checked')).map(cb => parseInt(cb.value, 10));
       const includeRand = document.getElementById('includeRandomAnchors').checked;
       const randCnt = parseInt(document.getElementById('randomAnchorsCount').value, 10) || 0;
-
       let preview = [];
       if (anchorCount > 0 && bases.length) {
-        const quarter = Math.floor(anchorCount / 4);
-        const remainder = anchorCount - quarter;
-        fcList.forEach(fc => bases.forEach(base => {
-          for (let i = 0; i < quarter; i++) preview.push(`${fc}:${base + i}`);
-        }));
+        const quarter = Math.floor(anchorCount / 4); const remainder = anchorCount - quarter;
+        fcList.forEach(fc => bases.forEach(base => { for (let i = 0; i < quarter; i++) preview.push(`${fc}:${base + i}`); }));
         let remainderPairs = [];
         fcList.forEach(fc => bases.forEach(base => {
-          const used = new Set();
-          while (used.size < remainder) {
-            const off = Math.floor(Math.random() * anchorCount);
-            if (off >= quarter) used.add(off);
-          }
+          const used = new Set(); while (used.size < remainder) { const off = Math.floor(Math.random() * anchorCount); if (off >= quarter) used.add(off); }
           used.forEach(off => remainderPairs.push(`${fc}:${base + off}`));
         }));
-        for (let i = remainderPairs.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [remainderPairs[i], remainderPairs[j]] = [remainderPairs[j], remainderPairs[i]];
-        }
+        for (let i = remainderPairs.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [remainderPairs[i], remainderPairs[j]] = [remainderPairs[j], remainderPairs[i]]; }
         preview = preview.concat(remainderPairs);
         if (includeRand && randCnt > 0) {
-          const minBase = Math.min(...bases);
-          const maxBase = Math.max(...bases);
-          const randSet = new Set();
-          while (randSet.size < randCnt) {
-            const r = Math.floor(Math.random() * (maxBase - minBase + 1)) + minBase;
-            randSet.add(r);
-          }
-          randSet.forEach(r => {
-            fcList.forEach(fc => preview.push(`${fc}:${r}}`));
-          });
+          const minBase = Math.min(...bases); const maxBase = Math.max(...bases); const randSet = new Set();
+          while (randSet.size < randCnt) { const r = Math.floor(Math.random() * (maxBase - minBase + 1)) + minBase; randSet.add(r); }
+          randSet.forEach(r => { fcList.forEach(fc => preview.push(`${fc}:${r}`)); });
         }
       } else {
-        const q = document.getElementById('quantity').value.trim().toLowerCase();
-        const all = (q === 'all');
-        const cnt = all ? Infinity : parseInt(q, 10);
+        const q = document.getElementById('quantity').value.trim().toLowerCase(); const all = (q === 'all'); const cnt = all ? Infinity : parseInt(q, 10);
         if (!all && (isNaN(cnt) || cnt < 1)) { alert('Invalid quantity'); return; }
-        if (all) {
-          fcList.forEach(fc => cardList.forEach(c => preview.push(`${fc}:${c}`)));
-        } else {
-          while (preview.length < cnt) {
-            const fc = fcList[Math.floor(Math.random() * fcList.length)];
-            const c = cardList[Math.floor(Math.random() * cardList.length)];
-            const key = `${fc}:${c}`;
-            if (!preview.includes(key)) preview.push(key);
-          }
-        }
+        if (all) { fcList.forEach(fc => cardList.forEach(c => preview.push(`${fc}:${c}`))); }
+        else { while (preview.length < cnt) { const fc = fcList[Math.floor(Math.random() * fcList.length)]; const c = cardList[Math.floor(Math.random() * cardList.length)]; const key = `${fc}:${c}`; if (!preview.includes(key)) preview.push(key); } }
       }
-
-      const codes = preview.map(pc => {
-        const [f, c] = pc.split(':').map(Number);
-        const raw = ((f << 16) | c) & 0xFFFFFF;
-        return raw.toString(16).toUpperCase().slice(-6).padStart(6,'0');
-      });
-      const blob = new Blob([codes.join("\n") + "\n"], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = name + '.txt'; a.click(); URL.revokeObjectURL(url);
-
+      const codes = preview.map(pc => { const [f, c] = pc.split(':').map(Number); const raw = ((f << 16) | c) & 0xFFFFFF; return raw.toString(16).toUpperCase().slice(-6).padStart(6,'0'); });
+      const blob = new Blob([codes.join("\n") + "\n"], { type: 'text/plain' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name + '.txt'; a.click(); URL.revokeObjectURL(url);
       document.getElementById('codePreview').textContent = preview.join("\n");
     };
-
     function parseRanges(s) { if (!s) return []; return Array.from(new Set(s.split(',').flatMap(p => { p = p.trim(); if (p.includes('-')) { const [a, b] = p.split('-').map(n => parseInt(n, 10)); if (isNaN(a) || isNaN(b)) return []; return Array.from({ length: Math.abs(b - a) + 1 }, (_, i) => Math.min(a, b) + i); } const n = parseInt(p, 10); return isNaN(n) ? [] : [n]; }))); }
     function mergeUnique(...args) { return Array.from(new Set(args.flat())); }
   </script>
