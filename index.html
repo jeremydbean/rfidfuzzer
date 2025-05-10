@@ -5,15 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RFID Fuzzer Playlist Generator</title>
   <style>
-    body {font-family: monospace; white-space: normal; max-width: 800px; margin: 2em auto; background: #f4f4f4; padding: 0 1em;}
-    .logo {text-align: center; margin-bottom: 1em;}
-    .logo img {max-width: 200px;}
-    h1, p, ol, li, label {font-family: sans-serif; white-space: normal;}
-    input[type="text"], input[type="number"] {width: 100%; padding: 0.5em; box-sizing: border-box; margin-top: 0.25em;}
-    #anchorBases {display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.25em; max-height: 200px; overflow-y: auto; padding: 0.5em; background: #fff; border: 1px solid #ccc;}
-    #anchorBases label {white-space: nowrap; font-family: sans-serif;}
-    button {margin-top: 1.5em; padding: 0.75em 1.5em; font-family: sans-serif;}
-    #codePreview {max-height: 300px; overflow: auto; background: #fff; padding: 0.5em; border: 1px solid #ccc; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; margin-top: 1em;}
+    body {
+      font-family: monospace;
+      white-space: normal;
+      max-width: 800px;
+      margin: 2em auto;
+      background: #f4f4f4;
+      padding: 0 1em;
+    }
+    .logo { text-align: center; margin-bottom: 1em; }
+    .logo img { max-width: 200px; }
+    h1, p, ol, li, label, legend { font-family: sans-serif; white-space: normal; }
+    fieldset { margin-top: 1.5em; padding: 1em; background: #fff; border: 1px solid #ccc; }
+    input[type="text"], input[type="number"] {
+      width: 100%; padding: 0.5em; box-sizing: border-box; margin-top: 0.25em;
+    }
+    #anchorBases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.25em; max-height: 200px;
+      overflow-y: auto; padding: 0.5em; background: #fff; border: 1px solid #ccc;
+    }
+    #anchorBases label { white-space: nowrap; }
+    button { margin-top: 1.5em; padding: 0.75em 1.5em; font-family: sans-serif; }
+    #codePreview { max-height: 300px; overflow: auto; background: #fff; padding: 0.5em;
+      border: 1px solid #ccc; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; margin-top: 0.5em;
+    }
+    hr { margin: 2em 0; }
   </style>
 </head>
 <body>
@@ -21,37 +36,53 @@
     <img src="IMG_1209.jpeg" alt="Flipper Zero Logo" />
   </div>
   <h1>RFID Fuzzer Playlist Generator</h1>
-
-  <p>You can generate card codes by:</p>
+  <p>Select how you want to build your playlist:</p>
   <ol>
-    <li><strong>Ranges:</strong> Enter ranges in the <em>Card Number Ranges</em> field.</li>
-    <li><strong>Anchors:</strong> Select base card numbers below and an <em>Anchor Count</em>; the script will take those base IDs and include sequential offsets.</li>
-    <li><strong>Both:</strong> Combine ranges and anchors to include codes from both sources.</li>
+    <li><strong>Use Ranges</strong> for card numbers you specify.</li>
+    <li><strong>Use Anchors</strong> to pick base numbers plus a count for sequential blocks.</li>
+    <li>Or <strong>combine both</strong> for maximum flexibility.</li>
   </ol>
 
-  <label>Playlist Name:<input id="playlistName" type="text" placeholder="my_playlist" /></label>
-  <label>Facility Codes (e.g., 1-5,70-79):<input id="fcRanges" type="text" placeholder="1-5,70-79" /></label>
-  <label><input id="commonFc" type="checkbox" /> Include common facility codes</label>
+  <fieldset>
+    <legend>Facility Codes</legend>
+    <label>Enter facility code ranges (e.g., 1-5,70-79):
+      <input id="fcRanges" type="text" placeholder="1-5,70-79" />
+    </label>
+    <label><input id="commonFc" type="checkbox" /> Include common facility codes</label>
+  </fieldset>
 
-  <label>Card Number Ranges (e.g., 10000-10500,11000-12000):<input id="cardRanges" type="text" placeholder="10000-10500,11000-12000" /></label>
-  <label><input id="commonCards" type="checkbox" /> Include common card numbers</label>
+  <hr />
 
-  <div id="anchorSection">
-    <p><strong>Anchor Numbers:</strong> Pick bases and count. The first ¼ of those offsets per base will be listed sequentially, then the remaining offsets are randomized globally.</p>
-    <label>Anchor Count (cards per base):<input id="anchorCount" type="number" min="1" placeholder="e.g., 40" /></label>
-    <label>Anchor Base Cards:</label>
+  <fieldset>
+    <legend>Card Numbers</nlegend>
+    <label>Enter card number ranges (e.g., 10000-10500,11000-12000):
+      <input id="cardRanges" type="text" placeholder="10000-10500,11000-12000" />
+    </label>
+    <label><input id="commonCards" type="checkbox" /> Include common card numbers</label>
+
+    <label>Anchor Count (cards per base):
+      <input id="anchorCount" type="number" min="1" placeholder="e.g., 40" />
+    </label>
+    <p>Select base cards (e.g., 1000, 2000…):</p>
     <div id="anchorBases"></div>
-  </div>
+  </fieldset>
 
-  <label>Quantity (number or “all”):<input id="quantity" type="text" placeholder="500 or all (ignored if anchors used)" /></label>
+  <fieldset>
+    <legend>Output Settings</legend>
+    <label>Playlist Name:
+      <input id="playlistName" type="text" placeholder="my_playlist" />
+    </label>
+    <label>Quantity (number or “all”):
+      <input id="quantity" type="text" placeholder="500 or all" />
+    </label>
+    <button id="generate">Generate &amp; Download</button>
+  </fieldset>
 
-  <button id="generate">Generate &amp; Download</button>
-
-  <label>Preview of Generated Codes (FC:Card):</label>
+  <br />
+  <label>Preview (FC:Card):</label>
   <pre id="codePreview"></pre>
 
   <script>
-    // Populate base cards 1000..40000
     const anchorBases = document.getElementById('anchorBases');
     for (let i = 1; i <= 40; i++) {
       const val = i * 1000;
@@ -81,14 +112,11 @@
       if (anchorCount > 0 && bases.length) {
         const quarter = Math.floor(anchorCount / 4);
         const remainder = anchorCount - quarter;
-        // Generate block and remainder lists
         fcList.forEach(fc => {
-          // sequential first-quarter
           bases.forEach(base => {
             for (let i = 0; i < quarter; i++) preview.push(`${fc}:${base + i}`);
           });
         });
-        // Build global remainder pool
         let remainderPairs = [];
         fcList.forEach(fc => {
           bases.forEach(base => {
@@ -100,14 +128,12 @@
             used.forEach(off => remainderPairs.push(`${fc}:${base + off}`));
           });
         });
-        // Shuffle remainderPairs
         for (let i = remainderPairs.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           [remainderPairs[i], remainderPairs[j]] = [remainderPairs[j], remainderPairs[i]];
         }
         preview = preview.concat(remainderPairs);
       } else {
-        // Range or random mode
         const q = document.getElementById('quantity').value.trim().toLowerCase();
         const all = (q === 'all');
         const cnt = all ? Infinity : parseInt(q, 10);
@@ -126,7 +152,6 @@
         }
       }
 
-      // Download hex file
       const codes = preview.map(pc => {
         const [f, c] = pc.split(':').map(Number);
         const raw = ((f << 16) | c) & 0xFFFFFF;
@@ -136,27 +161,11 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = name + '.txt'; a.click(); URL.revokeObjectURL(url);
 
-      // Preview update
       document.getElementById('codePreview').textContent = preview.join("\n");
     };
 
-    function parseRanges(s) {
-      if (!s) return [];
-      return Array.from(new Set(s.split(',').flatMap(p => {
-        p = p.trim();
-        if (p.includes('-')) {
-          const [a, b] = p.split('-').map(n => parseInt(n, 10));
-          if (isNaN(a) || isNaN(b)) return [];
-          return Array.from({ length: Math.abs(b - a) + 1 }, (_, i) => Math.min(a, b) + i);
-        }
-        const n = parseInt(p, 10);
-        return isNaN(n) ? [] : [n];
-      })));
-    }
-
-    function mergeUnique(...args) {
-      return Array.from(new Set(args.flat()));
-    }
+    function parseRanges(s) { if (!s) return []; return Array.from(new Set(s.split(',').flatMap(p => { p = p.trim(); if (p.includes('-')) { const [a,b] = p.split('-').map(n=>parseInt(n,10)); if (isNaN(a)||isNaN(b)) return []; return Array.from({length:Math.abs(b-a)+1},(_,i)=>Math.min(a,b)+i);} const n=parseInt(p,10); return isNaN(n)?[]:[n]; }))); }
+    function mergeUnique(...args) { return Array.from(new Set(args.flat())); }
   </script>
 </body>
 </html>
