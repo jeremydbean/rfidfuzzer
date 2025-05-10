@@ -29,18 +29,12 @@
       font-family: sans-serif;
       white-space: normal;
     }
-    input[type="text"], input[type="number"] {
+    input[type="text"], input[type="number"], select {
       width: 100%;
       padding: 0.5em;
       box-sizing: border-box;
       font-family: sans-serif;
-    }
-    #anchorOptions label {
-      display: inline-block;
-      width: 100px;
-      margin: 0.25em;
-      font-family: sans-serif;
-      white-space: nowrap;
+      margin-top: 0.25em;
     }
     button {
       margin-top: 1.5em;
@@ -69,13 +63,13 @@
   </label>
 
   <label>
-    Facility Codes (e.g. 1-5,70-79):
+    Facility Codes (e.g., 1-5,70-79):
     <input id="fcRanges" type="text" placeholder="1-5,70-79" />
   </label>
   <label><input id="commonFc" type="checkbox" /> Include common facility codes</label>
 
   <label>
-    Card Number Ranges (e.g. 10000-10500,11000-12000):
+    Card Number Ranges (e.g., 10000-10500,11000-12000):
     <input id="cardRanges" type="text" placeholder="10000-10500,11000-12000" />
   </label>
   <label><input id="commonCards" type="checkbox" /> Include common card numbers</label>
@@ -85,7 +79,13 @@
       Anchor Count (cards per base):
       <input id="anchorCount" type="number" min="1" placeholder="e.g., 25" />
     </label>
-    <div id="anchorOptions"></div>
+    <label>
+      Anchor Base Cards (use Ctrl+Click to select multiple):
+      <select id="anchorBases" multiple size="6">
+        <!-- Options 1000 to 40000 -->
+        ${Array.from({length:40},(_,i)=>1000*(i+1)).map(v=>`<option value="${v}">${v}</option>`).join('')}
+      </select>
+    </label>
   </div>
 
   <label>
@@ -98,15 +98,6 @@
   <div id="summary"></div>
 
   <script>
-    // Populate anchor checkboxes for 1000-40000
-    const anchorContainer = document.getElementById('anchorOptions');
-    for (let i = 1; i <= 40; i++) {
-      const val = i * 1000;
-      const lbl = document.createElement('label');
-      lbl.innerHTML = `<input type="checkbox" value="${val}" /> ${val}`;
-      anchorContainer.appendChild(lbl);
-    }
-
     const commonFC = [1,150,167,184,28,30,402,42,76,77,78,79,82,23,99];
     const commonCards = [10016,10017,10020,10021,10103,10133,11078,13773,17563,199,20328,251,2604,27443,292,29918,30353,30355,3193,33977,37547,3929,50646,521,56730,6046,62085,63703,64606,64858,64866,64899,76,80,89];
 
@@ -118,17 +109,16 @@
       if (document.getElementById('commonFc').checked) fcList = mergeUnique(fcList, commonFC);
       if (!fcList.length) { alert('No facility codes specified'); return; }
 
-      // Card list from ranges and common
       let cardList = parseRanges(document.getElementById('cardRanges').value);
       if (document.getElementById('commonCards').checked) cardList = mergeUnique(cardList, commonCards);
 
-      // Card anchors
       const anchorCount = parseInt(document.getElementById('anchorCount').value, 10);
-      const selectedAnchors = Array.from(document.querySelectorAll('#anchorOptions input:checked')).map(cb => parseInt(cb.value, 10));
-      if (anchorCount > 0 && selectedAnchors.length) {
-        selectedAnchors.forEach(base => {
-          for (let offset = 0; offset < anchorCount; offset++) {
-            cardList.push(base + offset);
+      const selectedBases = Array.from(document.getElementById('anchorBases').selectedOptions)
+        .map(opt => parseInt(opt.value,10));
+      if (anchorCount > 0 && selectedBases.length) {
+        selectedBases.forEach(base => {
+          for (let i=0; i<anchorCount; i++) {
+            cardList.push(base + i);
           }
         });
       }
@@ -147,55 +137,49 @@
           codes.push(formatHex(fc, c));
         }
       } else {
-        const always = [];
-        for (let fc of commonFC.filter(x => fcList.includes(x)))
-          for (let c of commonCards.filter(x => cardList.includes(x)))
-            always.push(formatHex(fc, c));
-        always.forEach(x => { if (!codes.includes(x)) codes.push(x); });
-        while ((codes.length - always.length) < count) {
-          const fc = fcList[Math.floor(Math.random() * fcList.length)];
-          const c  = cardList[Math.floor(Math.random() * cardList.length)];
-          const hx = formatHex(fc, c);
-          if (!codes.includes(hx)) codes.push(hx);
+        while (codes.length < count) {
+          const fc = fcList[Math.floor(Math.random()*fcList.length)];
+          const c = cardList[Math.floor(Math.random()*cardList.length)];
+          const hex = formatHex(fc,c);
+          if (!codes.includes(hex)) codes.push(hex);
         }
       }
 
-      // Output file
       const content = codes.join("\n") + "\n";
-      const blob = new Blob([content], { type: "text/plain" });
+      const blob = new Blob([content], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = name + '.txt'; a.click(); URL.revokeObjectURL(url);
+      const a = document.createElement('a'); a.href=url; a.download=name+'.txt'; a.click(); URL.revokeObjectURL(url);
 
-      // Summary box
       document.getElementById('summary').innerText =
         `Included FCs: ${fcList.sort((a,b)=>a-b).join(', ')}\n` +
         `Included Cards: ${cardList.sort((a,b)=>a-b).join(', ')}\n` +
-        `Output Count: ${generateAll ? codes.length + ' (all)' : count}`;
+        `Output Count: ${generateAll ? codes.length+' (all)' : count}`;
     };
 
     function parseRanges(input) {
       if (!input) return [];
-      return Array.from(new Set(input.split(',').flatMap(s => {
-        s = s.trim();
-        if (s.includes('-')) {
-          const [lo, hi] = s.split('-').map(n => parseInt(n, 10));
-          if (isNaN(lo) || isNaN(hi)) return [];
-          return Array.from({ length: Math.abs(hi - lo) + 1 }, (_, i) => Math.min(lo, hi) + i);
-        } else {
-          const n = parseInt(s, 10);
-          return isNaN(n) ? [] : [n];
-        }
-      })));
+      return Array.from(new Set(
+        input.split(',').flatMap(s=>{
+          s=s.trim();
+          if(s.includes('-')){
+            const [lo,hi]=s.split('-').map(n=>parseInt(n,10));
+            if(isNaN(lo)||isNaN(hi)) return [];
+            return Array.from({length:Math.abs(hi-lo)+1},(_,i)=>Math.min(lo,hi)+i);
+          }
+          const n=parseInt(s,10);
+          return isNaN(n)?[]:[n];
+        })
+      ));
     }
 
-    function mergeUnique(arr) {
-      return Array.from(new Set([].concat(...arguments)));
+    function mergeUnique(...arrays) {
+      return Array.from(new Set(arrays.flat()));
     }
 
-    function formatHex(fc, card) {
-      const raw = ((fc << 16) | card) & 0xFFFFFF;
-      const hex = raw.toString(16).toUpperCase().slice(-6).padStart(6, '0');
-      return hex;
+    function formatHex(fc,card) {
+      const raw=((fc<<16)|card)&0xFFFFFF;
+      let h=raw.toString(16).toUpperCase().slice(-6).padStart(6,'0');
+      return h;
     }
   </script>
 </body>
