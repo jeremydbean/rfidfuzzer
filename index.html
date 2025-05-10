@@ -90,22 +90,17 @@
       const name = document.getElementById("playlistName").value.trim();
       if (!name) return alert("Playlist name is required");
 
-      const rawFc = document.getElementById("fcRanges").value.trim();
-      const includeCommonFc = document.getElementById("commonFc").checked;
-      const rawCard = document.getElementById("cardRanges").value.trim();
-      const includeCommonCards = document.getElementById("commonCards").checked;
-      const rawQty = document.getElementById("quantity").value.trim().toLowerCase();
-
-      let fcList = parseRanges(rawFc);
-      if (includeCommonFc) fcList = mergeUnique(fcList, commonFC);
+      let fcList = parseRanges(document.getElementById("fcRanges").value);
+      if (document.getElementById("commonFc").checked) fcList = mergeUnique(fcList, commonFC);
       if (!fcList.length) return alert("No facility codes specified");
 
-      let cardList = parseRanges(rawCard);
-      if (includeCommonCards) cardList = mergeUnique(cardList, commonCards);
+      let cardList = parseRanges(document.getElementById("cardRanges").value);
+      if (document.getElementById("commonCards").checked) cardList = mergeUnique(cardList, commonCards);
       if (!cardList.length) return alert("No card numbers specified");
 
-      const generateAll = (rawQty === "all");
-      const count = generateAll ? 0 : parseInt(rawQty, 10);
+      const qRaw = document.getElementById("quantity").value.trim().toLowerCase();
+      const generateAll = (qRaw === "all");
+      const count = generateAll ? 0 : parseInt(qRaw, 10);
       if (!generateAll && (isNaN(count) || count < 1)) return alert("Invalid quantity");
 
       let codes = [];
@@ -116,9 +111,7 @@
         }
       } else {
         const always = [];
-        for (let fc of commonFC.filter(x => fcList.includes(x)))
-          for (let c of commonCards.filter(x => cardList.includes(x)))
-            always.push(formatHex(fc, c));
+        for (let fc of commonFC.filter(x => fcList.includes(x))) for (let c of commonCards.filter(x => cardList.includes(x))) always.push(formatHex(fc, c));
         always.forEach(x => { if (!codes.includes(x)) codes.push(x); });
         while ((codes.length - always.length) < count) {
           const fc = fcList[Math.floor(Math.random() * fcList.length)];
@@ -128,38 +121,26 @@
         }
       }
 
-      // Build file content with comments of entered options
-      let header = `# Playlist Name: ${name}\n`;
-      header += `# Facility Input: ${rawFc}\n`;
-      header += `# Include Common FC: ${includeCommonFc}\n`;
-      header += `# Card Input: ${rawCard}\n`;
-      header += `# Include Common Cards: ${includeCommonCards}\n`;
-      header += `# Quantity: ${rawQty}\n\n`;
-      const content = header + codes.join("\n") + "\n\n";
-
+      const content = codes.join("\n") + "\n";
       const blob = new Blob([content], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href = url; a.download = name + ".txt"; a.click(); URL.revokeObjectURL(url);
 
-      // Display summary in box
       document.getElementById("summary").innerText =
-        `Included Facility Codes: ${fcList.sort((a,b)=>a-b).join(', ')}\n` +
-        `Included Card Numbers: ${cardList.sort((a,b)=>a-b).join(', ')}\n` +
-        `Generated ${generateAll ? codes.length + ' (all)' : count} codes.`;
+        `Included FCs: ${fcList.sort((a,b)=>a-b).join(', ')}\n` +
+        `Included Cards: ${cardList.sort((a,b)=>a-b).join(', ')}\n` +
+        `Count: ${generateAll ? codes.length + ' (all)' : count}`;
     };
 
     function parseRanges(input) {
       if (!input) return [];
       return Array.from(new Set(
-        input.split(",").flatMap(s => {
+        input.split(',').flatMap(s => {
           s = s.trim();
-          if (s.includes("-")) {
-            const [lo, hi] = s.split("-").map(n => parseInt(n, 10));
+          if (s.includes('-')) {
+            const [lo, hi] = s.split('-').map(n => parseInt(n, 10));
             if (isNaN(lo) || isNaN(hi)) return [];
-            return Array.from(
-              { length: Math.abs(hi - lo) + 1 },
-              (_, i) => Math.min(lo, hi) + i
-            );
+            return Array.from({ length: Math.abs(hi - lo) + 1 }, (_, i) => Math.min(lo, hi) + i);
           } else {
             const n = parseInt(s, 10);
             return isNaN(n) ? [] : [n];
@@ -169,7 +150,12 @@
     }
 
     function mergeUnique(a, b) { return Array.from(new Set(a.concat(b))); }
-    function formatHex(fc, card) { return ((fc << 16) | card).toString(16).toUpperCase().padStart(8, '0'); }
+    function formatHex(fc, card) {
+      const raw = ((fc << 16) | card) & 0xFFFFFF;
+      let hex = raw.toString(16).toUpperCase();
+      hex = hex.slice(-6).padStart(6, '0');
+      return hex;
+    }
   </script>
 </body>
 </html>
