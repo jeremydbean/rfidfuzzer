@@ -116,7 +116,7 @@
   <button id="generate">Generate &amp; Download</button>
 
   <div id="summary"></div>
-  <label>Preview of Generated Codes:</label>
+  <label>Preview of Generated Codes (FC:Card):</label>
   <pre id="codePreview"></pre>
 
   <script>
@@ -136,62 +136,69 @@
       const name = document.getElementById('playlistName').value.trim();
       if (!name) { alert('Playlist name is required'); return; }
 
+      // Facility Codes
       let fcList = parseRanges(document.getElementById('fcRanges').value);
       if (document.getElementById('commonFc').checked) fcList = mergeUnique(fcList, commonFC);
       if (!fcList.length) { alert('No facility codes specified'); return; }
 
+      // Base Card ranges and commons
       let cardList = parseRanges(document.getElementById('cardRanges').value);
       if (document.getElementById('commonCards').checked) cardList = mergeUnique(cardList, commonCards);
 
+      // Anchors
       const anchorCount = parseInt(document.getElementById('anchorCount').value, 10) || 0;
       const selectedBases = Array.from(anchorBases.querySelectorAll('input:checked')).map(cb => parseInt(cb.value,10));
-      if (anchorCount > 0 && selectedBases.length) {
-        selectedBases.forEach(base => {
-          for (let j=0; j<anchorCount; j++) {
-            cardList.push(base + j);
-          }
-        });
-      }
-      cardList = mergeUnique(cardList);
-      if (!cardList.length) { alert('No card numbers specified'); return; }
 
+      // Prepare for generation
       const qRaw = document.getElementById('quantity').value.trim().toLowerCase();
       const generateAll = (qRaw === 'all');
       const count = generateAll ? 0 : parseInt(qRaw, 10);
       if (!generateAll && (isNaN(count) || count < 1)) { alert('Invalid quantity'); return; }
 
       let codes = [];
+      let previewList = [];
+
       if (generateAll) {
         for (let fc of fcList) {
           for (let c of cardList) {
             if (codes.length >= 2500) break;
             codes.push(formatHex(fc, c));
+            previewList.push(`${fc}:${c}`);
+          }
+        }
+      } else if (anchorCount > 0 && selectedBases.length) {
+        const blockSize = Math.floor(count / selectedBases.length);
+        let blockCards = [];
+        selectedBases.forEach(base => {
+          for (let i=0; i<blockSize; i++) blockCards.push(base + i);
+        });
+        blockCards = Array.from(new Set(blockCards));
+        // Block codes first
+        for (let fc of fcList) {
+          blockCards.forEach(c => {
+            const hex = formatHex(fc, c);
+            codes.push(hex);
+            previewList.push(`${fc}:${c}`);
+          });
+        }
+        // Remainder random
+        while (codes.length < count) {
+          const fc = fcList[Math.floor(Math.random()*fcList.length)];
+          const c = cardList[Math.floor(Math.random()*cardList.length)];
+          const hex = formatHex(fc,c);
+          if (!codes.includes(hex)) {
+            codes.push(hex);
+            previewList.push(`${fc}:${c}`);
           }
         }
       } else {
-        // Anchored block first
-        if (anchorCount>0 && selectedBases.length) {
-          const blockSize = Math.floor(count / selectedBases.length);
-          let blockCards = [];
-          selectedBases.forEach(base => {
-            for (let i=0; i<blockSize; i++) blockCards.push(base + i);
-          });
-          blockCards = Array.from(new Set(blockCards));
-          for (let fc of fcList) blockCards.forEach(c=>codes.push(formatHex(fc,c)));
-          // fill remainder
-          while (codes.length < count) {
-            const fc = fcList[Math.floor(Math.random()*fcList.length)];
-            const c = cardList[Math.floor(Math.random()*cardList.length)];
-            const hex = formatHex(fc,c);
-            if (!codes.includes(hex)) codes.push(hex);
-          }
-        } else {
-          // Random selection only
-          while (codes.length < count) {
-            const fc = fcList[Math.floor(Math.random()*fcList.length)];
-            const c = cardList[Math.floor(Math.random()*cardList.length)];
-            const hex = formatHex(fc,c);
-            if (!codes.includes(hex)) codes.push(hex);
+        while (codes.length < count) {
+          const fc = fcList[Math.floor(Math.random()*fcList.length)];
+          const c = cardList[Math.floor(Math.random()*cardList.length)];
+          const hex = formatHex(fc,c);
+          if (!codes.includes(hex)) {
+            codes.push(hex);
+            previewList.push(`${fc}:${c}`);
           }
         }
       }
@@ -202,12 +209,14 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href=url; a.download=name+'.txt'; a.click(); URL.revokeObjectURL(url);
 
-      // Summary and preview
+      // Summary
       document.getElementById('summary').innerText =
         `Included FCs: ${fcList.sort((a,b)=>a-b).join(', ')}\n` +
         `Included Cards: ${cardList.sort((a,b)=>a-b).join(', ')}\n` +
         `Output Count: ${generateAll ? codes.length+' (all)' : count}`;
-      document.getElementById('codePreview').textContent = codes.join("\n");
+
+      // Preview FC:Card pairs
+      document.getElementById('codePreview').textContent = previewList.join("\n");
     };
 
     function parseRanges(input) {
