@@ -5,30 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RFID Fuzzer Playlist Generator</title>
   <style>
-    body {
-      font-family: monospace;
-      white-space: normal;
-      max-width: 800px;
-      margin: 2em auto;
-      background: #f4f4f4;
-      padding: 0 1em;
-    }
-    .logo { text-align: center; margin-bottom: 1em; }
-    .logo img { max-width: 200px; }
-    h1, p, ol, li, label, legend { font-family: sans-serif; white-space: normal; }
-    fieldset { margin-top: 1.5em; padding: 1em; background: #fff; border: 1px solid #ccc; }
-    input[type="text"], input[type="number"] {
-      width: 100%; padding: 0.5em; box-sizing: border-box; margin-top: 0.25em;
-    }
-    #anchorBases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.25em; max-height: 200px;
-      overflow-y: auto; padding: 0.5em; background: #fff; border: 1px solid #ccc;
-    }
-    #anchorBases label { white-space: nowrap; }
-    button { margin-top: 1.5em; padding: 0.75em 1.5em; font-family: sans-serif; }
-    #codePreview { max-height: 300px; overflow: auto; background: #fff; padding: 0.5em;
-      border: 1px solid #ccc; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; margin-top: 0.5em;
-    }
-    hr { margin: 2em 0; }
+    body {font-family: monospace; white-space: normal; max-width: 800px; margin: 2em auto; background: #f4f4f4; padding: 0 1em;}
+    .logo {text-align: center; margin-bottom: 1em;}
+    .logo img {max-width: 200px;}
+    h1, p, ol, li, label, legend {font-family: sans-serif; white-space: normal;}
+    fieldset {margin-top: 1.5em; padding: 1em; background: #fff; border: 1px solid #ccc;}
+    input[type="text"], input[type="number"] {width: 100%; padding: 0.5em; box-sizing: border-box; margin-top: 0.25em;}
+    #anchorBases {display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.25em; max-height: 200px; overflow-y: auto; padding: 0.5em; background: #fff; border: 1px solid #ccc;}
+    #anchorBases label {white-space: nowrap;}
+    button {margin-top: 1.5em; padding: 0.75em 1.5em; font-family: sans-serif;}
+    #codePreview {max-height: 300px; overflow: auto; background: #fff; padding: 0.5em; border: 1px solid #ccc; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; margin-top: 0.5em;}
+    hr {margin: 2em 0;}
   </style>
 </head>
 <body>
@@ -36,11 +23,11 @@
     <img src="IMG_1209.jpeg" alt="Flipper Zero Logo" />
   </div>
   <h1>RFID Fuzzer Playlist Generator</h1>
-  <p>Select how you want to build your playlist:</p>
+  <p>You can generate card codes by:</p>
   <ol>
     <li><strong>Use Ranges</strong> for card numbers you specify.</li>
     <li><strong>Use Anchors</strong> to pick base numbers plus a count for sequential blocks.</li>
-    <li>Or <strong>combine both</strong> for maximum flexibility.</li>
+    <li><strong>Both</strong> to combine ranges and anchors.</li>
   </ol>
 
   <fieldset>
@@ -54,16 +41,17 @@
   <hr />
 
   <fieldset>
-    <legend>Card Numbers</nlegend>
+    <legend>Card Numbers</legend>
     <label>Enter card number ranges (e.g., 10000-10500,11000-12000):
       <input id="cardRanges" type="text" placeholder="10000-10500,11000-12000" />
     </label>
     <label><input id="commonCards" type="checkbox" /> Include common card numbers</label>
 
+    <p><strong>Anchors</strong> let you pick specific starting base cards and a count. The first quarter of each block is listed first, then the rest is shuffled.</p>
     <label>Anchor Count (cards per base):
       <input id="anchorCount" type="number" min="1" placeholder="e.g., 40" />
     </label>
-    <p>Select base cards (e.g., 1000, 2000…):</p>
+    <label>Starting Base Cards:</label>
     <div id="anchorBases"></div>
   </fieldset>
 
@@ -79,11 +67,18 @@
   </fieldset>
 
   <br />
-  <label>Preview (FC:Card):</label>
+  <label>Preview of Generated Codes (FC:Card):</label>
   <pre id="codePreview"></pre>
 
   <script>
     const anchorBases = document.getElementById('anchorBases');
+    // include extra base cards 0,100-900
+    [0,100,200,300,400,500,600,700,800,900].forEach(val => {
+      const lbl = document.createElement('label');
+      lbl.innerHTML = `<input type="checkbox" value="${val}" /> ${val}`;
+      anchorBases.appendChild(lbl);
+    });
+    // then 1000..40000
     for (let i = 1; i <= 40; i++) {
       const val = i * 1000;
       const lbl = document.createElement('label');
@@ -91,20 +86,23 @@
       anchorBases.appendChild(lbl);
     }
 
-    const commonFC = [1,150,167,184,28,30,402,42,76,77,78,79,82,23,99];
+    const commonFC = [1,5,10,16,32,50,80,100,150,167,184,28,30,402,42,76,77,78,79,82,23,99];
     const commonCards = [10016,10017,10020,10021,10103,10133,11078,13773,17563,199,20328,251,2604,27443,292,29918,30353,30355,3193,33977,37547,3929,50646,521,56730,6046,62085,63703,64606,64858,64866,64899,76,80,89];
 
     document.getElementById('generate').onclick = () => {
       const name = document.getElementById('playlistName').value.trim();
       if (!name) { alert('Playlist name is required'); return; }
 
+      // Facility codes
       let fcList = parseRanges(document.getElementById('fcRanges').value);
       if (document.getElementById('commonFc').checked) fcList = mergeUnique(fcList, commonFC);
       if (!fcList.length) { alert('No facility codes specified'); return; }
 
-      let cardRangesList = parseRanges(document.getElementById('cardRanges').value);
-      if (document.getElementById('commonCards').checked) cardRangesList = mergeUnique(cardRangesList, commonCards);
+      // Card ranges + commons
+      let cardList = parseRanges(document.getElementById('cardRanges').value);
+      if (document.getElementById('commonCards').checked) cardList = mergeUnique(cardList, commonCards);
 
+      // Anchors
       const anchorCount = parseInt(document.getElementById('anchorCount').value, 10) || 0;
       const bases = Array.from(anchorBases.querySelectorAll('input:checked')).map(cb => parseInt(cb.value, 10));
 
@@ -112,59 +110,58 @@
       if (anchorCount > 0 && bases.length) {
         const quarter = Math.floor(anchorCount / 4);
         const remainder = anchorCount - quarter;
-        fcList.forEach(fc => {
-          bases.forEach(base => {
-            for (let i = 0; i < quarter; i++) preview.push(`${fc}:${base + i}`);
-          });
-        });
+        // first-quarter sequential
+        fcList.forEach(fc => bases.forEach(base => {
+          for (let i = 0; i < quarter; i++) preview.push(`${fc}:${base + i}`);
+        }));
+        // build and shuffle remainder
         let remainderPairs = [];
-        fcList.forEach(fc => {
-          bases.forEach(base => {
-            const used = new Set();
-            while (used.size < remainder) {
-              const off = Math.floor(Math.random() * anchorCount);
-              if (off >= quarter) used.add(off);
-            }
-            used.forEach(off => remainderPairs.push(`${fc}:${base + off}`));
-          });
-        });
+        fcList.forEach(fc => bases.forEach(base => {
+          const used = new Set();
+          while (used.size < remainder) {
+            const off = Math.floor(Math.random() * anchorCount);
+            if (off >= quarter) used.add(off);
+          }
+          used.forEach(off => remainderPairs.push(`${fc}:${base + off}`));
+        }));
         for (let i = remainderPairs.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           [remainderPairs[i], remainderPairs[j]] = [remainderPairs[j], remainderPairs[i]];
         }
         preview = preview.concat(remainderPairs);
       } else {
+        // range or random
         const q = document.getElementById('quantity').value.trim().toLowerCase();
         const all = (q === 'all');
         const cnt = all ? Infinity : parseInt(q, 10);
         if (!all && (isNaN(cnt) || cnt < 1)) { alert('Invalid quantity'); return; }
         if (all) {
-          fcList.forEach(fc => {
-            cardRangesList.forEach(c => preview.push(`${fc}:${c}`));
-          });
+          fcList.forEach(fc => cardList.forEach(c => preview.push(`${fc}:${c}`)));
         } else {
           while (preview.length < cnt) {
             const fc = fcList[Math.floor(Math.random() * fcList.length)];
-            const c = cardRangesList[Math.floor(Math.random() * cardRangesList.length)];
+            const c = cardList[Math.floor(Math.random() * cardList.length)];
             const key = `${fc}:${c}`;
             if (!preview.includes(key)) preview.push(key);
           }
         }
       }
 
+      // download hex file
       const codes = preview.map(pc => {
         const [f, c] = pc.split(':').map(Number);
         const raw = ((f << 16) | c) & 0xFFFFFF;
-        return raw.toString(16).toUpperCase().slice(-6).padStart(6, '0');
+        return raw.toString(16).toUpperCase().slice(-6).padStart(6,'0');
       });
-      const blob = new Blob([codes.join("\n") + "\n"], { type: 'text/plain' });
+      const blob = new Blob([codes.join("\n")+"\n"],{type:'text/plain'});
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = name + '.txt'; a.click(); URL.revokeObjectURL(url);
+      const a = document.createElement('a'); a.href=url; a.download=name+'.txt'; a.click(); URL.revokeObjectURL(url);
 
+      // show preview
       document.getElementById('codePreview').textContent = preview.join("\n");
     };
 
-    function parseRanges(s) { if (!s) return []; return Array.from(new Set(s.split(',').flatMap(p => { p = p.trim(); if (p.includes('-')) { const [a,b] = p.split('-').map(n=>parseInt(n,10)); if (isNaN(a)||isNaN(b)) return []; return Array.from({length:Math.abs(b-a)+1},(_,i)=>Math.min(a,b)+i);} const n=parseInt(p,10); return isNaN(n)?[]:[n]; }))); }
+    function parseRanges(s) { if (!s) return []; return Array.from(new Set(s.split(',').flatMap(p => { p = p.trim(); if (p.includes('-')) { const [a, b] = p.split('-').map(n => parseInt(n, 10)); if (isNaN(a) || isNaN(b)) return []; return Array.from({ length: Math.abs(b - a) + 1 }, (_, i) => Math.min(a, b) + i); } const n = parseInt(p, 10); return isNaN(n) ? [] : [n]; }))); }
     function mergeUnique(...args) { return Array.from(new Set(args.flat())); }
   </script>
 </body>
